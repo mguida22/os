@@ -34,16 +34,18 @@ int main(int argc, char* argv[]){
     
     /* Check Arguments */
     if(argc < MINARGS){
-	fprintf(stderr, "Not enough arguments: %d\n", (argc - 1));
-	fprintf(stderr, "Usage:\n %s %s\n", argv[0], USAGE);
-	return EXIT_FAILURE;
+		fprintf(stderr, "Not enough arguments: %d\n", (argc - 1));
+		fprintf(stderr, "Usage:\n %s %s\n", argv[0], USAGE);
+
+		return EXIT_FAILURE;
     }
 
     /* Open Output File */
     outputfp = fopen(argv[(argc-1)], "w");
+
     if(!outputfp){
-	perror("Error Opening Output File");
-	return EXIT_FAILURE;
+		perror("Error Opening Output File");
+		return EXIT_FAILURE;
     }
 
     /* Loop Through Input Files */
