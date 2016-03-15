@@ -23,7 +23,7 @@ int lookup_name(char*);
 pthread_mutex_t req_lock;
 pthread_mutex_t res_lock;
 
-int current_file = 1;
+int current = 1;
 int done = 0;
 int global_argc;
 char** global_argv;
