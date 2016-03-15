@@ -9,9 +9,6 @@ all: multi-lookup
 multi-lookup: multi-lookup.o queue.o util.o
 	$(CC) $(LFLAGS) $^ -o $@
 
-lookup.o: lookup.c
-	$(CC) $(CFLAGS) $<
-
 queue.o: queue.c queue.h
 	$(CC) $(CFLAGS) $<
 

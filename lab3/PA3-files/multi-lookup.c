@@ -13,7 +13,7 @@ void* request_handler() {
 
     // don't read inputs we don't have, just cause we have threads
     if (local < (global_argc-1)) {
-      read_file(global_argv[local_argv]);
+      read_file(global_argv[local]);
     }
   }
 
@@ -28,28 +28,29 @@ void* resolver_handler() {
   while(done == 0 || queue_is_empty(&lookup_queue) == 0) {
     thread_count += lookup_name(output_file);
   }
+
+  if (thread_count > 0) {
+    printf("Resolver thread added %d hostnames to queue.\n", thread_count);
+  }
+
+  return NULL;
 }
 
-void* read_file(void* f_name)
+void read_file(char* f_name)
 {
   FILE* inputfp = NULL;
   char errorstr[SBUFSIZE];
   char hostname[SBUFSIZE];
-  char* host_address;
+  // char* host_address;
 
   if (strcmp(f_name, "") == 0) {
     return;
   }
 
-  inputfp = fopen(f_name, "r");
-  if (!inputfp) {
-    sprintf(errorstr, "")
-  }
-
   // Open Input File
-  inputfp = fopen(file_name, "r");
+  inputfp = fopen(f_name, "r");
   if(!inputfp){
-    sprintf(errorstr, "Error Opening Input File: %s", file_name);
+    sprintf(errorstr, "Error Opening Input File: %s", f_name);
     perror(errorstr);
 
     return;
@@ -59,8 +60,8 @@ void* read_file(void* f_name)
   // Read File and Process
   while(fscanf(inputfp, INPUTFS, hostname) > 0){
     // save in memory
-    char* host_address = (char*)malloc(strlen(hostname) + 1)
-    host_address = hostname;
+    char* host_address = (char*)malloc(strlen(hostname) + 1);
+    strcpy(host_address, hostname);
 
     // add to queue
     while(queue_push(&lookup_queue, host_address) == QUEUE_FAILURE) {
@@ -76,10 +77,10 @@ void* read_file(void* f_name)
 
   fclose(inputfp);
 
-  return NULL;
+  return;
 }
 
-void* lookup_name(void* o_file)
+int lookup_name(char* o_file)
 {
   char firstipstr[INET6_ADDRSTRLEN];
   FILE* outputfp = NULL;
@@ -87,7 +88,7 @@ void* lookup_name(void* o_file)
   int invalid_dns = 0;
 
   // open file to append our results
-  outputfp = fopen(o_file);
+  outputfp = fopen(o_file, "a");
   if (!outputfp) {
     perror("Error Opening Output File");
 
@@ -102,7 +103,7 @@ void* lookup_name(void* o_file)
 
   // dnslookup our address
   if(dnslookup(address, firstipstr, sizeof(firstipstr)) == UTIL_FAILURE) {
-    fprintf(stderr, "dnslookup error: %s\n", hostname);
+    fprintf(stderr, "dnslookup error: %s\n", address);
     strncpy(firstipstr, "", sizeof(firstipstr));
 
     // mark that it was invalid
