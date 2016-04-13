@@ -13,39 +13,39 @@
  *      implmentation.
  */
 
-#include <stdio.h> 
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "simulator.h"
 
-void pageit(Pentry q[MAXPROCESSES]) { 
-    
-    /* This file contains the stub for an LRU pager */
-    /* You may need to add/remove/modify any part of this file */
+void pageit(Pentry q[MAXPROCESSES]) {
 
-    /* Static vars */
-    static int initialized = 0;
-    static int tick = 1; // artificial time
-    static int timestamps[MAXPROCESSES][MAXPROCPAGES];
+  /* This file contains the stub for an LRU pager */
+  /* You may need to add/remove/modify any part of this file */
 
-    /* Local vars */
-    int proctmp;
-    int pagetmp;
+  /* Static vars */
+  static int initialized = 0;
+  static int tick = 1; // artificial time
+  static int timestamps[MAXPROCESSES][MAXPROCPAGES];
 
-    /* initialize static vars on first run */
-    if(!initialized){
-    	for(proctmp=0; proctmp < MAXPROCESSES; proctmp++){
-    	    for(pagetmp=0; pagetmp < MAXPROCPAGES; pagetmp++){
-    		timestamps[proctmp][pagetmp] = 0; 
-    	    }
-    	}
-	   initialized = 1;
+  /* Local vars */
+  int proctmp;
+  int pagetmp;
+
+  /* initialize static vars on first run */
+  if(!initialized){
+    for(proctmp=0; proctmp < MAXPROCESSES; proctmp++){
+      for(pagetmp=0; pagetmp < MAXPROCPAGES; pagetmp++){
+        timestamps[proctmp][pagetmp] = 0;
+      }
     }
-    
-    /* TODO: Implement LRU Paging */
-    fprintf(stderr, "pager-lru not yet implemented. Exiting...\n");
-    exit(EXIT_FAILURE);
+    initialized = 1;
+  }
 
-    /* advance time for next pageit iteration */
-    tick++;
-} 
+  /* TODO: Implement LRU Paging */
+  fprintf(stderr, "pager-lru not yet implemented. Exiting...\n");
+  exit(EXIT_FAILURE);
+
+  /* advance time for next pageit iteration */
+  tick++;
+}
