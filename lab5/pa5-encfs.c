@@ -26,6 +26,8 @@
 
 #include "aes-crypt.h"
 
+#define ENC_CODE "user.pa5-encfs.encrypted"
+
 struct fs_state {
 	char* password;
 	char* mirror_directory;
@@ -287,28 +289,35 @@ static int og_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
 	(void) offset;
+	(void) size;
 	char daPath[PATH_MAX];
 	getDaPath(daPath, path);
 
 	int res;
-	int action = 0;
+	// do nothing unless we need to
+	int action = -1;
 	(void) fi;
 
-	FILE* inFile = fopen(daPath, "r");
+	// do we need to decrypt?
+	char message[6];
+	getxattr(daPath, ENC_CODE, message, 6);
+	if (strcmp(message, "true") == 0)
+	{
+		action = 0;
+	}
+
+	FILE* inFile = fopen(daPath, "rw+");
 	FILE* outFile = tmpfile();
 
-	// check attr to see if it's encrypted
-	// decrypt if needed & write to tmp file
-	// read from file to buffer and return data
+	// decrypt if necessary
 	if (!do_crypt(inFile, outFile, action, ((struct fs_state *) fuse_get_context()->private_data)->password))
 	{
 		printf("Encryption got messed up.... sorry :'(\n");
-		return -1;
 	}
 
 	fseek(outFile, 0, SEEK_SET);
-
-	res = fread(buf, 1, size, outFile);
+	fseek(inFile, 0, SEEK_SET);
+	res = fread(&buf, 1, size, outFile);
 
 	if (res == -1)
 	{
@@ -324,22 +333,56 @@ static int og_read(const char *path, char *buf, size_t size, off_t offset,
 static int og_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
+	(void) offset;
 	char daPath[PATH_MAX];
 	getDaPath(daPath, path);
-	int fd;
+
 	int res;
-
+	int action = -1;
 	(void) fi;
-	fd = open(daPath, O_WRONLY);
-	if (fd == -1)
-		return -errno;
 
-	res = pwrite(fd, buf, size, offset);
+	// do we need to decrypt?
+	char message[6];
+	getxattr(daPath, ENC_CODE, message, 6);
+	if (strcmp(message, "true") == 0)
+	{
+		action = 0;
+	}
+
+	FILE* inFile = fopen(daPath, "rw+");
+	FILE* outFile = tmpfile();
+
+	// decrypt data
+	if (!do_crypt(inFile, outFile, action, ((struct fs_state *) fuse_get_context()->private_data)->password))
+	{
+		printf("Encryption got messed up.... sorry :'(\n");
+	}
+
+	fseek(outFile, 0, SEEK_SET);
+	fseek(inFile, 0, SEEK_SET);
+
+	res = fwrite(buf, 1, size, outFile);
+
+	// encrypt data if needed
+	if (action == 0)
+	{
+		action = 1;
+	}
+
+	if (!do_crypt(outFile, inFile, action, ((struct fs_state *) fuse_get_context()->private_data)->password))
+	{
+		printf("Encryption got messed up.... sorry :'(\n");
+	}
+
 	if (res == -1)
+	{
 		res = -errno;
+	}
 
-	close(fd);
-	return res;
+	fclose(inFile);
+  fclose(outFile);
+
+  return res;
 }
 
 static int og_statfs(const char *path, struct statvfs *stbuf)
@@ -361,12 +404,26 @@ static int og_create(const char* path, mode_t mode, struct fuse_file_info* fi)
 	getDaPath(daPath, path);
 	(void) fi;
 
-	int res;
-	res = creat(daPath, mode);
-	if(res == -1)
-		return -errno;
+  int res;
+  res = creat(daPath, mode);
 
-	close(res);
+  if(res == -1)
+	{
+		return -errno;
+	}
+
+  FILE* inFile = fopen(daPath, "rw+");
+
+	// encrypt
+  if(!do_crypt(inFile, inFile, 1, ((struct fs_state *) fuse_get_context()->private_data)->password)){
+    printf("Encryption got messed up.... sorry :'(\n");
+  }
+
+  fclose(inFile);
+  close(res);
+
+	// set encrypted flag to true so we know for later
+	setxattr(daPath, ENC_CODE, "true", sizeof("true"), 0);
 
 	return 0;
 }
