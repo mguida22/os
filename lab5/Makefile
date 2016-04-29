@@ -1,13 +1,3 @@
-# File: Makefile
-# By: Andy Sayler <www.andysayler.com>
-# Adopted from work by: Chris Wailes <chris.wailes@gmail.com>
-# Project: CSCI 3753 Programming Assignment 5
-# Creation Date: 2010/04/06
-# Modififed Date: 2012/04/12
-# Description:
-#	This is the Makefile for PA5.
-
-
 CC           = gcc
 
 CFLAGSFUSE   = `pkg-config fuse --cflags`
@@ -45,7 +35,7 @@ aes-crypt-util: aes-crypt-util.o aes-crypt.o
 	$(CC) $(LFLAGS) $^ -o $@ $(LLIBSOPENSSL)
 
 pa5-encfs.o: pa5-encfs.c
-	$(CC) $(CFLAGS) $<
+	$(CC) $(CFLAGS) $(CFLAGSFUSE) $<
 
 fusehello.o: fusehello.c
 	$(CC) $(CFLAGS) $(CFLAGSFUSE) $<
@@ -66,7 +56,7 @@ clean:
 	rm -f $(FUSE_EXAMPLES)
 	rm -f $(XATTR_EXAMPLES)
 	rm -f $(OPENSSL_EXAMPLES)
-	rm -f pa5-encfs.o
+	rm -f pa5-encfs
 	rm -f *.o
 	rm -f *~
 	rm -f handout/*~
