@@ -24,10 +24,21 @@
 #include <sys/xattr.h>
 #endif
 
+#include "aes-crypt.h"
+
 struct fs_state {
 	char* password;
 	char* mirror_directory;
 };
+
+static char* makeDaFilePath(char* prefix, char* daPath)
+{
+	char* daNewName = (char *) malloc(1 + strlen(prefix) + strlen(daPath));
+	strcpy(daNewName, prefix);
+	strcat(daNewName, daPath);
+
+	return daNewName;
+}
 
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
@@ -293,23 +304,39 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
 	(void) path;
+	(void) offset;
+	(void) size;
 	char daPath[PATH_MAX];
 	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
 
-	int fd;
 	int res;
-
+	int action = -1;
 	(void) fi;
-	fd = open(daPath, O_RDONLY);
-	if (fd == -1)
-		return -errno;
 
-	res = pread(fd, buf, size, offset);
-	if (res == -1)
-		res = -errno;
+	// check attr to see if it's encrypted
+	// decrypt if needed & write to tmp file
+	// read from file to buffer and return data
+	FILE* daRealOgFile = fopen(daPath, "rb");
+	char* daTmpPath = makeDaFilePath(daPath, "pimpinReadPrefix");
+	FILE* daTmpFile = fopen(daTmpPath, "wb+");
 
-	close(fd);
-	return res;
+	if (!do_crypt(daRealOgFile, daTmpFile, action, ((struct fs_state *) fuse_get_context()->private_data)->password))
+	{
+		printf("Encryption got messed up.... sorry :'(\n");
+		return -1;
+	}
+
+	fseek(daTmpFile, 0, SEEK_END);
+	size_t daTmpFileLength = ftell(daTmpFile);
+	fseek(daTmpFile, 0, SEEK_SET);
+
+	res = fread(buf, 1, daTmpFileLength, daTmpFile);
+
+	fclose(daRealOgFile);
+  fclose(daTmpFile);
+  remove(daTmpPath);
+
+  return res;
 }
 
 static int xmp_write(const char *path, const char *buf, size_t size,
@@ -367,7 +394,6 @@ static int xmp_create(const char* path, mode_t mode, struct fuse_file_info* fi)
 
 	return 0;
 }
-
 
 static int xmp_release(const char *path, struct fuse_file_info *fi)
 {
