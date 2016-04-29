@@ -31,21 +31,16 @@ struct fs_state {
 	char* mirror_directory;
 };
 
-static char* makeDaFilePath(char* prefix, char* daPath)
+static void getDaPath(char daPath[PATH_MAX], const char* path)
 {
-	char* daNewName = (char *) malloc(1 + strlen(prefix) + strlen(daPath));
-	strcpy(daNewName, prefix);
-	strcat(daNewName, daPath);
-
-	return daNewName;
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+	strcat(daPath, path);
 }
 
-static int xmp_getattr(const char *path, struct stat *stbuf)
+static int og_getattr(const char *path, struct stat *stbuf)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 
 	res = lstat(daPath, stbuf);
@@ -55,12 +50,10 @@ static int xmp_getattr(const char *path, struct stat *stbuf)
 	return 0;
 }
 
-static int xmp_access(const char *path, int mask)
+static int og_access(const char *path, int mask)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 
 	res = access(daPath, mask);
@@ -70,12 +63,10 @@ static int xmp_access(const char *path, int mask)
 	return 0;
 }
 
-static int xmp_readlink(const char *path, char *buf, size_t size)
+static int og_readlink(const char *path, char *buf, size_t size)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 
 	res = readlink(daPath, buf, size - 1);
@@ -86,13 +77,11 @@ static int xmp_readlink(const char *path, char *buf, size_t size)
 	return 0;
 }
 
-static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+static int og_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	DIR *dp;
 	struct dirent *de;
 
@@ -116,12 +105,10 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	return 0;
 }
 
-static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
+static int og_mknod(const char *path, mode_t mode, dev_t rdev)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 
 	/* On Linux this could just be 'mknod(path, mode, rdev)' but this
@@ -140,12 +127,10 @@ static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 	return 0;
 }
 
-static int xmp_mkdir(const char *path, mode_t mode)
+static int og_mkdir(const char *path, mode_t mode)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 
 	res = mkdir(daPath, mode);
@@ -155,12 +140,10 @@ static int xmp_mkdir(const char *path, mode_t mode)
 	return 0;
 }
 
-static int xmp_unlink(const char *path)
+static int og_unlink(const char *path)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 
 	res = unlink(daPath);
@@ -170,12 +153,10 @@ static int xmp_unlink(const char *path)
 	return 0;
 }
 
-static int xmp_rmdir(const char *path)
+static int og_rmdir(const char *path)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 
 	res = rmdir(daPath);
@@ -185,45 +166,55 @@ static int xmp_rmdir(const char *path)
 	return 0;
 }
 
-static int xmp_symlink(const char *from, const char *to)
+static int og_symlink(const char *from, const char *to)
 {
+	char fromPath[PATH_MAX];
+	getDaPath(fromPath, from);
+	char toPath[PATH_MAX];
+	getDaPath(toPath, to);
 	int res;
 
-	res = symlink(from, to);
+	res = symlink(fromPath, toPath);
 	if (res == -1)
 		return -errno;
 
 	return 0;
 }
 
-static int xmp_rename(const char *from, const char *to)
+static int og_rename(const char *from, const char *to)
 {
+	char fromPath[PATH_MAX];
+	getDaPath(fromPath, from);
+	char toPath[PATH_MAX];
+	getDaPath(toPath, to);
 	int res;
 
-	res = rename(from, to);
+	res = rename(fromPath, toPath);
 	if (res == -1)
 		return -errno;
 
 	return 0;
 }
 
-static int xmp_link(const char *from, const char *to)
+static int og_link(const char *from, const char *to)
 {
+	char fromPath[PATH_MAX];
+	getDaPath(fromPath, from);
+	char toPath[PATH_MAX];
+	getDaPath(toPath, to);
 	int res;
 
-	res = link(from, to);
+	res = link(fromPath, toPath);
 	if (res == -1)
 		return -errno;
 
 	return 0;
 }
 
-static int xmp_chmod(const char *path, mode_t mode)
+static int og_chmod(const char *path, mode_t mode)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 
 	res = chmod(daPath, mode);
@@ -233,12 +224,10 @@ static int xmp_chmod(const char *path, mode_t mode)
 	return 0;
 }
 
-static int xmp_chown(const char *path, uid_t uid, gid_t gid)
+static int og_chown(const char *path, uid_t uid, gid_t gid)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 
 	res = lchown(daPath, uid, gid);
@@ -248,12 +237,10 @@ static int xmp_chown(const char *path, uid_t uid, gid_t gid)
 	return 0;
 }
 
-static int xmp_truncate(const char *path, off_t size)
+static int og_truncate(const char *path, off_t size)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 
 	res = truncate(daPath, size);
@@ -263,12 +250,10 @@ static int xmp_truncate(const char *path, off_t size)
 	return 0;
 }
 
-static int xmp_utimens(const char *path, const struct timespec ts[2])
+static int og_utimens(const char *path, const struct timespec ts[2])
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 	struct timeval tv[2];
 
@@ -284,12 +269,10 @@ static int xmp_utimens(const char *path, const struct timespec ts[2])
 	return 0;
 }
 
-static int xmp_open(const char *path, struct fuse_file_info *fi)
+static int og_open(const char *path, struct fuse_file_info *fi)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 
 	res = open(daPath, fi->flags);
@@ -300,24 +283,25 @@ static int xmp_open(const char *path, struct fuse_file_info *fi)
 	return 0;
 }
 
-static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
+static int og_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
-	(void) path;
 	(void) offset;
 	(void) size;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+	getDaPath(daPath, path);
 
 	int res;
-	int action = -1;
+	int action = 0;
 	(void) fi;
 
 	// check attr to see if it's encrypted
 	// decrypt if needed & write to tmp file
 	// read from file to buffer and return data
 	FILE* daRealOgFile = fopen(daPath, "rb");
-	char* daTmpPath = makeDaFilePath(daPath, "pimpinReadPrefix");
+	char daTmpPath[PATH_MAX];
+	getDaPath(daTmpPath, daPath);
+	getDaPath(daTmpPath, "read_suffix");
 	FILE* daTmpFile = fopen(daTmpPath, "wb+");
 
 	if (!do_crypt(daRealOgFile, daTmpFile, action, ((struct fs_state *) fuse_get_context()->private_data)->password))
@@ -339,13 +323,11 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
   return res;
 }
 
-static int xmp_write(const char *path, const char *buf, size_t size,
+static int og_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int fd;
 	int res;
 
@@ -362,12 +344,10 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 	return res;
 }
 
-static int xmp_statfs(const char *path, struct statvfs *stbuf)
+static int og_statfs(const char *path, struct statvfs *stbuf)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res;
 
 	res = statvfs(daPath, stbuf);
@@ -377,12 +357,10 @@ static int xmp_statfs(const char *path, struct statvfs *stbuf)
 	return 0;
 }
 
-static int xmp_create(const char* path, mode_t mode, struct fuse_file_info* fi)
+static int og_create(const char* path, mode_t mode, struct fuse_file_info* fi)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	(void) fi;
 
 	int res;
@@ -395,7 +373,7 @@ static int xmp_create(const char* path, mode_t mode, struct fuse_file_info* fi)
 	return 0;
 }
 
-static int xmp_release(const char *path, struct fuse_file_info *fi)
+static int og_release(const char *path, struct fuse_file_info *fi)
 {
 	/* Just a stub.	 This method is optional and can safely be left
 	   unimplemented */
@@ -405,7 +383,7 @@ static int xmp_release(const char *path, struct fuse_file_info *fi)
 	return 0;
 }
 
-static int xmp_fsync(const char *path, int isdatasync,
+static int og_fsync(const char *path, int isdatasync,
 		     struct fuse_file_info *fi)
 {
 	/* Just a stub.	 This method is optional and can safely be left
@@ -418,50 +396,42 @@ static int xmp_fsync(const char *path, int isdatasync,
 }
 
 #ifdef HAVE_SETXATTR
-static int xmp_setxattr(const char *path, const char *name, const char *value,
+static int og_setxattr(const char *path, const char *name, const char *value,
 			size_t size, int flags)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res = lsetxattr(daPath, name, value, size, flags);
 	if (res == -1)
 		return -errno;
 	return 0;
 }
 
-static int xmp_getxattr(const char *path, const char *name, char *value,
+static int og_getxattr(const char *path, const char *name, char *value,
 			size_t size)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res = lgetxattr(daPath, name, value, size);
 	if (res == -1)
 		return -errno;
 	return res;
 }
 
-static int xmp_listxattr(const char *path, char *list, size_t size)
+static int og_listxattr(const char *path, char *list, size_t size)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res = llistxattr(daPath, list, size);
 	if (res == -1)
 		return -errno;
 	return res;
 }
 
-static int xmp_removexattr(const char *path, const char *name)
+static int og_removexattr(const char *path, const char *name)
 {
-	(void) path;
 	char daPath[PATH_MAX];
-	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
-
+	getDaPath(daPath, path);
 	int res = lremovexattr(daPath, name);
 	if (res == -1)
 		return -errno;
@@ -469,34 +439,34 @@ static int xmp_removexattr(const char *path, const char *name)
 }
 #endif /* HAVE_SETXATTR */
 
-static struct fuse_operations xmp_oper = {
-	.getattr	= xmp_getattr,
-	.access		= xmp_access,
-	.readlink	= xmp_readlink,
-	.readdir	= xmp_readdir,
-	.mknod		= xmp_mknod,
-	.mkdir		= xmp_mkdir,
-	.symlink	= xmp_symlink,
-	.unlink		= xmp_unlink,
-	.rmdir		= xmp_rmdir,
-	.rename		= xmp_rename,
-	.link		= xmp_link,
-	.chmod		= xmp_chmod,
-	.chown		= xmp_chown,
-	.truncate	= xmp_truncate,
-	.utimens	= xmp_utimens,
-	.open		= xmp_open,
-	.read		= xmp_read,
-	.write		= xmp_write,
-	.statfs		= xmp_statfs,
-	.create         = xmp_create,
-	.release	= xmp_release,
-	.fsync		= xmp_fsync,
+static struct fuse_operations og_oper = {
+	.getattr	= og_getattr,
+	.access		= og_access,
+	.readlink	= og_readlink,
+	.readdir	= og_readdir,
+	.mknod		= og_mknod,
+	.mkdir		= og_mkdir,
+	.symlink	= og_symlink,
+	.unlink		= og_unlink,
+	.rmdir		= og_rmdir,
+	.rename		= og_rename,
+	.link		= og_link,
+	.chmod		= og_chmod,
+	.chown		= og_chown,
+	.truncate	= og_truncate,
+	.utimens	= og_utimens,
+	.open		= og_open,
+	.read		= og_read,
+	.write		= og_write,
+	.statfs		= og_statfs,
+	.create         = og_create,
+	.release	= og_release,
+	.fsync		= og_fsync,
 #ifdef HAVE_SETXATTR
-	.setxattr	= xmp_setxattr,
-	.getxattr	= xmp_getxattr,
-	.listxattr	= xmp_listxattr,
-	.removexattr	= xmp_removexattr,
+	.setxattr	= og_setxattr,
+	.getxattr	= og_getxattr,
+	.listxattr	= og_listxattr,
+	.removexattr	= og_removexattr,
 #endif
 };
 
@@ -520,5 +490,5 @@ int main(int argc, char *argv[])
 	argv[3] = NULL;
 	argv[4] = NULL;
 
-	return fuse_main(argc-2, argv, &xmp_oper, fs_data);
+	return fuse_main(argc-2, argv, &og_oper, fs_data);
 }
