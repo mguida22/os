@@ -21,7 +21,7 @@ FUSE_EXAMPLES = fusehello fusexmp
 XATTR_EXAMPLES = xattr-util
 OPENSSL_EXAMPLES = aes-crypt-util
 
-.PHONY: all fuse-examples xattr-examples openssl-examples clean
+.PHONY: all fuse-examples xattr-examples openssl-examples clean pa5-encfs
 
 all: fuse-examples xattr-examples openssl-examples pa5-encfs
 
@@ -43,6 +43,9 @@ xattr-util: xattr-util.o
 
 aes-crypt-util: aes-crypt-util.o aes-crypt.o
 	$(CC) $(LFLAGS) $^ -o $@ $(LLIBSOPENSSL)
+
+pa5-encfs.o: pa5-encfs.c
+	$(CC) $(CFLAGS) $<
 
 fusehello.o: fusehello.c
 	$(CC) $(CFLAGS) $(CFLAGSFUSE) $<

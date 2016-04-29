@@ -12,6 +12,7 @@
 
 #include <fuse.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -21,6 +22,11 @@
 #ifdef HAVE_SETXATTR
 #include <sys/xattr.h>
 #endif
+
+struct fs_state {
+	char* password;
+	char* mirror_directory;
+};
 
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
@@ -386,5 +392,22 @@ static struct fuse_operations xmp_oper = {
 int main(int argc, char *argv[])
 {
 	umask(0);
-	return fuse_main(argc, argv, &xmp_oper, NULL);
+
+	if (argc < 4) {
+		printf("Invalid usage: ./pa5-encfs <password> <mirror directory> <mount point>\n");
+		exit(EXIT_FAILURE);
+	}
+
+	// idea from here --> http://www.cs.nmsu.edu/~pfeiffer/fuse-tutorial/
+	struct fs_state *fs_data = malloc(sizeof *fs_data);
+
+	fs_data->password = argv[1];
+	fs_data->mirror_directory = realpath(argv[2], NULL);
+
+	argv[1] = argv[3];
+	argv[2] = argv[4];
+	argv[3] = NULL;
+	argv[4] = NULL;
+
+	return fuse_main(argc-2, argv, &xmp_oper, fs_data);
 }
