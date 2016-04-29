@@ -287,7 +287,6 @@ static int og_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
 	(void) offset;
-	(void) size;
 	char daPath[PATH_MAX];
 	getDaPath(daPath, path);
 
@@ -295,30 +294,29 @@ static int og_read(const char *path, char *buf, size_t size, off_t offset,
 	int action = 0;
 	(void) fi;
 
+	FILE* inFile = fopen(daPath, "r");
+	FILE* outFile = tmpfile();
+
 	// check attr to see if it's encrypted
 	// decrypt if needed & write to tmp file
 	// read from file to buffer and return data
-	FILE* daRealOgFile = fopen(daPath, "rb");
-	char daTmpPath[PATH_MAX];
-	getDaPath(daTmpPath, daPath);
-	getDaPath(daTmpPath, "read_suffix");
-	FILE* daTmpFile = fopen(daTmpPath, "wb+");
-
-	if (!do_crypt(daRealOgFile, daTmpFile, action, ((struct fs_state *) fuse_get_context()->private_data)->password))
+	if (!do_crypt(inFile, outFile, action, ((struct fs_state *) fuse_get_context()->private_data)->password))
 	{
 		printf("Encryption got messed up.... sorry :'(\n");
 		return -1;
 	}
 
-	fseek(daTmpFile, 0, SEEK_END);
-	size_t daTmpFileLength = ftell(daTmpFile);
-	fseek(daTmpFile, 0, SEEK_SET);
+	fseek(outFile, 0, SEEK_SET);
 
-	res = fread(buf, 1, daTmpFileLength, daTmpFile);
+	res = fread(buf, 1, size, outFile);
 
-	fclose(daRealOgFile);
-  fclose(daTmpFile);
-  remove(daTmpPath);
+	if (res == -1)
+	{
+		res = -errno;
+	}
+
+	fclose(inFile);
+  fclose(outFile);
 
   return res;
 }
