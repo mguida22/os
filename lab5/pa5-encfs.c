@@ -13,6 +13,7 @@
 #include <fuse.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <linux/limits.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -30,9 +31,13 @@ struct fs_state {
 
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 
-	res = lstat(path, stbuf);
+	res = lstat(daPath, stbuf);
 	if (res == -1)
 		return -errno;
 
@@ -41,9 +46,13 @@ static int xmp_getattr(const char *path, struct stat *stbuf)
 
 static int xmp_access(const char *path, int mask)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 
-	res = access(path, mask);
+	res = access(daPath, mask);
 	if (res == -1)
 		return -errno;
 
@@ -52,9 +61,13 @@ static int xmp_access(const char *path, int mask)
 
 static int xmp_readlink(const char *path, char *buf, size_t size)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 
-	res = readlink(path, buf, size - 1);
+	res = readlink(daPath, buf, size - 1);
 	if (res == -1)
 		return -errno;
 
@@ -65,13 +78,17 @@ static int xmp_readlink(const char *path, char *buf, size_t size)
 static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	DIR *dp;
 	struct dirent *de;
 
 	(void) offset;
 	(void) fi;
 
-	dp = opendir(path);
+	dp = opendir(daPath);
 	if (dp == NULL)
 		return -errno;
 
@@ -90,18 +107,22 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 
 	/* On Linux this could just be 'mknod(path, mode, rdev)' but this
 	   is more portable */
 	if (S_ISREG(mode)) {
-		res = open(path, O_CREAT | O_EXCL | O_WRONLY, mode);
+		res = open(daPath, O_CREAT | O_EXCL | O_WRONLY, mode);
 		if (res >= 0)
 			res = close(res);
 	} else if (S_ISFIFO(mode))
-		res = mkfifo(path, mode);
+		res = mkfifo(daPath, mode);
 	else
-		res = mknod(path, mode, rdev);
+		res = mknod(daPath, mode, rdev);
 	if (res == -1)
 		return -errno;
 
@@ -110,9 +131,13 @@ static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 
 static int xmp_mkdir(const char *path, mode_t mode)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 
-	res = mkdir(path, mode);
+	res = mkdir(daPath, mode);
 	if (res == -1)
 		return -errno;
 
@@ -121,9 +146,13 @@ static int xmp_mkdir(const char *path, mode_t mode)
 
 static int xmp_unlink(const char *path)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 
-	res = unlink(path);
+	res = unlink(daPath);
 	if (res == -1)
 		return -errno;
 
@@ -132,9 +161,13 @@ static int xmp_unlink(const char *path)
 
 static int xmp_rmdir(const char *path)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 
-	res = rmdir(path);
+	res = rmdir(daPath);
 	if (res == -1)
 		return -errno;
 
@@ -176,9 +209,13 @@ static int xmp_link(const char *from, const char *to)
 
 static int xmp_chmod(const char *path, mode_t mode)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 
-	res = chmod(path, mode);
+	res = chmod(daPath, mode);
 	if (res == -1)
 		return -errno;
 
@@ -187,9 +224,13 @@ static int xmp_chmod(const char *path, mode_t mode)
 
 static int xmp_chown(const char *path, uid_t uid, gid_t gid)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 
-	res = lchown(path, uid, gid);
+	res = lchown(daPath, uid, gid);
 	if (res == -1)
 		return -errno;
 
@@ -198,9 +239,13 @@ static int xmp_chown(const char *path, uid_t uid, gid_t gid)
 
 static int xmp_truncate(const char *path, off_t size)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 
-	res = truncate(path, size);
+	res = truncate(daPath, size);
 	if (res == -1)
 		return -errno;
 
@@ -209,6 +254,10 @@ static int xmp_truncate(const char *path, off_t size)
 
 static int xmp_utimens(const char *path, const struct timespec ts[2])
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 	struct timeval tv[2];
 
@@ -217,7 +266,7 @@ static int xmp_utimens(const char *path, const struct timespec ts[2])
 	tv[1].tv_sec = ts[1].tv_sec;
 	tv[1].tv_usec = ts[1].tv_nsec / 1000;
 
-	res = utimes(path, tv);
+	res = utimes(daPath, tv);
 	if (res == -1)
 		return -errno;
 
@@ -226,9 +275,13 @@ static int xmp_utimens(const char *path, const struct timespec ts[2])
 
 static int xmp_open(const char *path, struct fuse_file_info *fi)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 
-	res = open(path, fi->flags);
+	res = open(daPath, fi->flags);
 	if (res == -1)
 		return -errno;
 
@@ -239,11 +292,15 @@ static int xmp_open(const char *path, struct fuse_file_info *fi)
 static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int fd;
 	int res;
 
 	(void) fi;
-	fd = open(path, O_RDONLY);
+	fd = open(daPath, O_RDONLY);
 	if (fd == -1)
 		return -errno;
 
@@ -258,11 +315,15 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 static int xmp_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int fd;
 	int res;
 
 	(void) fi;
-	fd = open(path, O_WRONLY);
+	fd = open(daPath, O_WRONLY);
 	if (fd == -1)
 		return -errno;
 
@@ -276,27 +337,35 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 
 static int xmp_statfs(const char *path, struct statvfs *stbuf)
 {
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
 	int res;
 
-	res = statvfs(path, stbuf);
+	res = statvfs(daPath, stbuf);
 	if (res == -1)
 		return -errno;
 
 	return 0;
 }
 
-static int xmp_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
+static int xmp_create(const char* path, mode_t mode, struct fuse_file_info* fi)
+{
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
 
-    (void) fi;
+	(void) fi;
 
-    int res;
-    res = creat(path, mode);
-    if(res == -1)
-	return -errno;
+	int res;
+	res = creat(daPath, mode);
+	if(res == -1)
+		return -errno;
 
-    close(res);
+	close(res);
 
-    return 0;
+	return 0;
 }
 
 
@@ -326,7 +395,11 @@ static int xmp_fsync(const char *path, int isdatasync,
 static int xmp_setxattr(const char *path, const char *name, const char *value,
 			size_t size, int flags)
 {
-	int res = lsetxattr(path, name, value, size, flags);
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
+	int res = lsetxattr(daPath, name, value, size, flags);
 	if (res == -1)
 		return -errno;
 	return 0;
@@ -335,7 +408,11 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,
 static int xmp_getxattr(const char *path, const char *name, char *value,
 			size_t size)
 {
-	int res = lgetxattr(path, name, value, size);
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
+	int res = lgetxattr(daPath, name, value, size);
 	if (res == -1)
 		return -errno;
 	return res;
@@ -343,7 +420,11 @@ static int xmp_getxattr(const char *path, const char *name, char *value,
 
 static int xmp_listxattr(const char *path, char *list, size_t size)
 {
-	int res = llistxattr(path, list, size);
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
+	int res = llistxattr(daPath, list, size);
 	if (res == -1)
 		return -errno;
 	return res;
@@ -351,7 +432,11 @@ static int xmp_listxattr(const char *path, char *list, size_t size)
 
 static int xmp_removexattr(const char *path, const char *name)
 {
-	int res = lremovexattr(path, name);
+	(void) path;
+	char daPath[PATH_MAX];
+	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
+
+	int res = lremovexattr(daPath, name);
 	if (res == -1)
 		return -errno;
 	return 0;
