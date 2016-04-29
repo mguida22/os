@@ -28,11 +28,13 @@
 
 #define ENC_CODE "user.pa5-encfs.encrypted"
 
+// simple struct to hold our data
 struct fs_state {
 	char* password;
 	char* mirror_directory;
 };
 
+// helper function to get the complete path, given the main and relative path
 static void getDaPath(char daPath[PATH_MAX], const char* path)
 {
 	strcpy(daPath, ((struct fs_state *) fuse_get_context()->private_data)->mirror_directory);
@@ -288,17 +290,20 @@ static int og_open(const char *path, struct fuse_file_info *fi)
 static int og_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
-	(void) offset;
-	(void) size;
+	// we don't use fi, void it.
+	(void) fi;
 	char daPath[PATH_MAX];
 	getDaPath(daPath, path);
 
 	int res;
-	// do nothing unless we need to
+	// do nothing with encryption unless we need to
 	int action = -1;
-	(void) fi;
 
-	// do we need to decrypt?
+	// open our file to read, and a temporary file to use for encryption
+	FILE* inFile = fopen(daPath, "r");
+	FILE* outFile = tmpfile();
+
+	// do we need to decrypt? need to pull in 6 to account for false + NULL
 	char message[6];
 	getxattr(daPath, ENC_CODE, message, 6);
 	if (strcmp(message, "true") == 0)
@@ -306,24 +311,24 @@ static int og_read(const char *path, char *buf, size_t size, off_t offset,
 		action = 0;
 	}
 
-	FILE* inFile = fopen(daPath, "rw+");
-	FILE* outFile = tmpfile();
-
-	// decrypt if necessary
+	// decrypt if necessary (action will be set to the right value by now)
 	if (!do_crypt(inFile, outFile, action, ((struct fs_state *) fuse_get_context()->private_data)->password))
 	{
 		printf("Encryption got messed up.... sorry :'(\n");
 	}
 
-	fseek(outFile, 0, SEEK_SET);
-	fseek(inFile, 0, SEEK_SET);
-	res = fread(&buf, 1, size, outFile);
+	// go back to the start of the file
+	fseek(outFile, offset, SEEK_SET);
+	// read into the buffer from the decrypted file
+	res = fread(buf, 1, size, outFile);
 
+	// if there was an error, set it
 	if (res == -1)
 	{
 		res = -errno;
 	}
 
+	// close our files that we opened
 	fclose(inFile);
   fclose(outFile);
 
@@ -333,15 +338,21 @@ static int og_read(const char *path, char *buf, size_t size, off_t offset,
 static int og_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
+	// don't use offset, void it
 	(void) offset;
+	(void) fi;
 	char daPath[PATH_MAX];
 	getDaPath(daPath, path);
 
 	int res;
+	// default to no action, change if we need to encrypt
 	int action = -1;
-	(void) fi;
 
-	// do we need to decrypt?
+	// open our file to write to, and create a temporary file for encryption
+	FILE* inFile = fopen(daPath, "rw+");
+	FILE* outFile = tmpfile();
+
+	// do we need to decrypt? pull in 6 for the case of false + NULL
 	char message[6];
 	getxattr(daPath, ENC_CODE, message, 6);
 	if (strcmp(message, "true") == 0)
@@ -349,36 +360,38 @@ static int og_write(const char *path, const char *buf, size_t size,
 		action = 0;
 	}
 
-	FILE* inFile = fopen(daPath, "rw+");
-	FILE* outFile = tmpfile();
-
-	// decrypt data
+	// decrypt data (action will be set here)
 	if (!do_crypt(inFile, outFile, action, ((struct fs_state *) fuse_get_context()->private_data)->password))
 	{
 		printf("Encryption got messed up.... sorry :'(\n");
 	}
 
-	fseek(outFile, 0, SEEK_SET);
-	fseek(inFile, 0, SEEK_SET);
-
+	// write our buffer to the end of the file that we have our other data in
 	res = fwrite(buf, 1, size, outFile);
 
-	// encrypt data if needed
-	if (action == 0)
-	{
-		action = 1;
-	}
-
-	if (!do_crypt(outFile, inFile, action, ((struct fs_state *) fuse_get_context()->private_data)->password))
-	{
-		printf("Encryption got messed up.... sorry :'(\n");
-	}
-
+	// if there was a problem set the error
 	if (res == -1)
 	{
 		res = -errno;
 	}
 
+	// encrypt data if we needed to decrypt before
+	if (action == 0)
+	{
+		action = 1;
+	}
+
+	// go to the top of both files
+	fseek(outFile, 0, SEEK_SET);
+	fseek(inFile, 0, SEEK_SET);
+
+	// decrypt if we need to (action is set)
+	if (!do_crypt(outFile, inFile, action, ((struct fs_state *) fuse_get_context()->private_data)->password))
+	{
+		printf("Encryption got messed up.... sorry :'(\n");
+	}
+
+	// close our files
 	fclose(inFile);
   fclose(outFile);
 
@@ -400,30 +413,35 @@ static int og_statfs(const char *path, struct statvfs *stbuf)
 
 static int og_create(const char* path, mode_t mode, struct fuse_file_info* fi)
 {
+	// don't use fi, void it
+	(void) fi;
 	char daPath[PATH_MAX];
 	getDaPath(daPath, path);
-	(void) fi;
 
   int res;
+	// create a file with the given mode
   res = creat(daPath, mode);
 
+	// if there was an error, set it
   if(res == -1)
 	{
 		return -errno;
 	}
 
-  FILE* inFile = fopen(daPath, "rw+");
+	// open our new file
+  FILE* inFile = fopen(daPath, "r+");
 
-	// encrypt
+	// set encrypted flag to true so we know it is encrypted
+	setxattr(daPath, ENC_CODE, "true", sizeof("true"), 0);
+
+	// encrypt it.
   if(!do_crypt(inFile, inFile, 1, ((struct fs_state *) fuse_get_context()->private_data)->password)){
     printf("Encryption got messed up.... sorry :'(\n");
   }
 
+	// close our files
   fclose(inFile);
   close(res);
-
-	// set encrypted flag to true so we know for later
-	setxattr(daPath, ENC_CODE, "true", sizeof("true"), 0);
 
 	return 0;
 }
@@ -529,6 +547,7 @@ int main(int argc, char *argv[])
 {
 	umask(0);
 
+	// check args, give usage message
 	if (argc < 4) {
 		printf("Invalid usage: ./pa5-encfs <password> <mirror directory> <mount point>\n");
 		exit(EXIT_FAILURE);
@@ -537,13 +556,16 @@ int main(int argc, char *argv[])
 	// idea from here --> http://www.cs.nmsu.edu/~pfeiffer/fuse-tutorial/
 	struct fs_state *fs_data = malloc(sizeof *fs_data);
 
+	// store password and mirror_directory for later use
 	fs_data->password = argv[1];
 	fs_data->mirror_directory = realpath(argv[2], NULL);
 
+	// since we stored those args, move the others up. NULL out old.
 	argv[1] = argv[3];
 	argv[2] = argv[4];
 	argv[3] = NULL;
 	argv[4] = NULL;
 
+	// call main with updated argc
 	return fuse_main(argc-2, argv, &og_oper, fs_data);
 }
