@@ -1,3 +1,3 @@
 # Operating Systems
 
-Code for the OS class.
+Code for Operating Systems at CU Boulder.
